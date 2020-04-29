@@ -56,23 +56,14 @@
 #include <uORB/topics/esc_status.h>
 #include <uORB/topics/parameter_update.h> //TODO check if needed
 
+//TODO Only for testing, replace by properly defined values.
+#define MAX_SUPPORTED_MOTORS 6
+#define MAX_HARMONICS 3
+
 class RpmFilter : public ModuleBase<RpmFilter>, public ModuleParams,
 	public px4::WorkItem
 {
 public:
-
-	typedef struct rpmNotchFilter_s {
-		uint8_t harmonics;
-		uint8_t motor_number;
-		float   minHz;
-		float   maxHz;
-		float   bandwitdh;
-		float   sample_freq;
-
-		math::NotchFilter<matrix::Vector3f>
-		notch_vector3f[6][3]; //TODO: replace hardcoded values by MOTOR_NUMBER, NUMBER_HARMONICS
-	} rpmNotchFilter_t;
-
 	RpmFilter();
 	~RpmFilter() override;
 
@@ -91,6 +82,22 @@ public:
 	/** @see ModuleBase::print_status() */
 	int print_status() override;
 
+	////////////TODO Decide if splitting to separate file
+
+	typedef struct rpmNotchFilter_s {
+		uint8_t harmonics;
+		float   minHz;
+		float   maxHz;
+		float   bandwidth;
+		float   sample_freq;
+
+		math::NotchFilter<matrix::Vector3f>
+		notch_vector3f[MAX_SUPPORTED_MOTORS][MAX_HARMONICS]; //TODO: replace hardcoded values by MOTOR_NUMBER, NUMBER_HARMONICS
+	} rpmNotchFilter_t;
+
+	void rpmNotchFilterInit(rpmNotchFilter_t *filter, int harmonics, int minHz, float bandwidth, float sample_freq);
+	void rpmFilterInit();
+
 private:
 	void Run() override; //TODO see if needed? maybe it needs to be done differently here
 	void updateParams() override;
@@ -106,5 +113,31 @@ private:
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::MPC_THR_HOVER>) _param_mpc_thr_hover //placeholder
 	)
+
+	//TODO Decide if splitting into different files
+
+
+	//TODO: Only compiles by removing the static and constexpr terms, this is because those values need to be initalised outside of the function!!
+	// Look into this further as it will modify how the code behaves, as those values are both used in init and update functions
+	// cannot initialise them here as against ISO standards, need to initialise outside of function
+	// intialising the vars in cpp gives error: ‘uint8_t RpmFilter::currentMotor’ is private within this context
+	// see https://stackoverflow.com/questions/20310000/error-iso-c-forbids-in-class-initialization-of-non-const-static-member for potential solution
+	// var
+	uint8_t numberFilters; //total number of low pass filters for motors
+	uint8_t numberRpmNotchFilters; //counter for rpm filters
+	uint8_t filterUpdatesPerIteration; // ceil(filtersPerLoopIteration)
+	esc_status_s esc_status; //structure where the esc telemetry data is stored.
+	static float   filteredMotorRpm[MAX_SUPPORTED_MOTORS]; //stores filtered Erpm value for each motor
+
+	//structures
+	rpmNotchFilter_t filters[2]; // structure size.
+	rpmNotchFilter_t *gyroFilter; //filter instance for gyro filtering
+	rpmNotchFilter_t *dtermFilter; //filter instance for dterm filtering
+
+	// iterators
+	uint8_t currentMotor; //iterates through motors
+	uint8_t currentHarmonic; //iterates through harmonics
+	uint8_t currentFilterNumber; //iterates through filter index
+	rpmNotchFilter_t *currentFilter = &filters[0]; //iterates through filters
 
 };

@@ -43,6 +43,9 @@
 // #include "NotchFilter.hpp" should be in hpp file?
 #include "RpmFilter.hpp"
 
+#define MOTORS_NUMBER 6 //TODO replace with esc_status.esc_count and make cleaner
+#define SAMPLE_FREQ 1000 //TODO replace with pid loop rate parameter
+
 RpmFilter::RpmFilter() :
 	ModuleParams(nullptr),
 	WorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
@@ -161,4 +164,67 @@ int RpmFilter::print_usage(const char *reason)
 extern "C" __EXPORT int rpmfilter_main(int argc, char *argv[])
 {
     return RpmFilter::main(argc, argv);
+}
+
+// TODO CREATE A SPLIT CLASS FROM HERE (MAYBE)
+
+//? consider merging this with the init function
+void RpmFilter::rpmNotchFilterInit(rpmNotchFilter_t* filter, int harmonics, int minHz, float bandwidth, float sample_freq)
+{
+    filter->harmonics = harmonics;
+    filter->minHz = minHz;
+    filter->bandwidth = bandwidth;
+    filter->sample_freq = sample_freq;
+
+    for (int motor = 0; motor < MOTORS_NUMBER; motor++) {
+        for (int i = 0; i < harmonics; i++) {
+            filter->notch_vector3f[motor][i].setParameters(filter->sample_freq, minHz * (i + 1), filter->bandwidth);
+        }
+    }
+}
+
+void RpmFilter::rpmFilterInit()
+{
+
+    //TODO: hardcoded at the moment. to add as SetParam
+    uint8_t gyro_rpm_notch_harmonics = 3;
+    uint8_t gyro_rpm_notch_min = 20;
+    uint16_t gyro_rpm_notch_bandwidth = 500;
+
+    // //parameters for dterm config
+    uint8_t dterm_rpm_notch_harmonics = 0; //number of harmonics different
+    uint8_t dterm_rpm_notch_min = 100;
+    uint16_t dterm_rpm_notch_bandwidth = 500;
+
+    //uint16_t rpm_lpf = 150; //TODO low pass filter frequency cut (everything cut under 150hz == 9000rpm)
+
+    //initialise iterators
+    //currentFilter = &filters[0]; !already inetialised in hpp, shouldn't need again
+    currentMotor = currentHarmonic = currentFilterNumber = 0;
+    numberRpmNotchFilters = 0;
+
+    if (gyro_rpm_notch_harmonics) {
+        gyroFilter = &filters[numberRpmNotchFilters++];
+        rpmNotchFilterInit(gyroFilter, gyro_rpm_notch_harmonics,
+                           gyro_rpm_notch_min, gyro_rpm_notch_bandwidth, SAMPLE_FREQ);
+        // don't go quite to nyquist to avoid oscillations
+        gyroFilter->maxHz = 0.48f * SAMPLE_FREQ;
+    } else {
+        gyroFilter = NULL;
+    }
+    if (dterm_rpm_notch_harmonics) {
+        dtermFilter = &filters[numberRpmNotchFilters++];
+        rpmNotchFilterInit(dtermFilter, dterm_rpm_notch_harmonics,
+                           dterm_rpm_notch_min, dterm_rpm_notch_bandwidth, SAMPLE_FREQ);
+        // don't go quite to nyquist to avoid oscillations
+        dtermFilter->maxHz = 0.48f * SAMPLE_FREQ;
+    } else {
+        dtermFilter = NULL;
+    }
+
+    //TODO lpf for rpm, implement later
+
+    //TODO consider refining later, replace MOTORS_NUMBER by esc count, add accelerometer filters if needed.
+    numberFilters = MOTORS_NUMBER * (filters[0].harmonics + filters[1].harmonics);
+    filterUpdatesPerIteration = numberFilters;
 }
