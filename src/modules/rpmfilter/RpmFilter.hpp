@@ -44,7 +44,9 @@
 #pragma once
 
 
-#include <mathlib/mathlib.h> // include NotchFilter and constrainf (TODO)
+#include <mathlib/mathlib.h> // include constrainf
+//#include <mathlib/math/filter/NotchFilter.hpp>
+#include <mathlib/math/filter/NotchFilterArray.hpp>
 #include <lib/perf/perf_counter.h> //TODO check how to use
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
@@ -55,41 +57,54 @@
 #include <uORB/topics/parameter_update.h> //TODO check if needed
 
 class RpmFilter : public ModuleBase<RpmFilter>, public ModuleParams,
-        public px4::WorkItem
+	public px4::WorkItem
 {
 public:
-        RpmFilter();
-        ~RpmFilter() override;
 
-        //TODO see if needed
-        /** @see ModuleBase */
-        static int task_spawn(int argc, char *argv[]);
+	typedef struct rpmNotchFilter_s {
+		uint8_t harmonics;
+		uint8_t motor_number;
+		float   minHz;
+		float   maxHz;
+		float   bandwitdh;
+		float   sample_freq;
 
-        /** @see ModuleBase */
-        static int custom_command(int argc, char *argv[]);
+		math::NotchFilter<matrix::Vector3f>
+		notch_vector3f[6][3]; //TODO: replace hardcoded values by MOTOR_NUMBER, NUMBER_HARMONICS
+	} rpmNotchFilter_t;
 
-        /** @see ModuleBase */
-        static int print_usage(const char *reason = nullptr);
+	RpmFilter();
+	~RpmFilter() override;
 
-        bool init();
+	//TODO see if needed
+	/** @see ModuleBase */
+	static int task_spawn(int argc, char *argv[]);
 
-        /** @see ModuleBase::print_status() */
-        int print_status() override;
+	/** @see ModuleBase */
+	static int custom_command(int argc, char *argv[]);
+
+	/** @see ModuleBase */
+	static int print_usage(const char *reason = nullptr);
+
+	bool init();
+
+	/** @see ModuleBase::print_status() */
+	int print_status() override;
 
 private:
-        void Run() override; //TODO see if needed? maybe it needs to be done differently here
-        void updateParams() override;
+	void Run() override; //TODO see if needed? maybe it needs to be done differently here
+	void updateParams() override;
 
-        void reset();
-        //void publishStatus(TODO::status &status); //TODO later
+	void reset();
+	//void publishStatus(TODO::status &status); //TODO later
 
-        uORB::SubscriptionCallbackWorkItem _esc_status_sub{this, ORB_ID(esc_status)};
-        uORB::Subscription _parameter_update_sub{ORB_ID(parameter_update)}; //TODO check if needed
+	uORB::SubscriptionCallbackWorkItem _esc_status_sub{this, ORB_ID(esc_status)};
+	uORB::Subscription _parameter_update_sub{ORB_ID(parameter_update)}; //TODO check if needed
 
-        perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle time")};
+	perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle time")};
 
-        DEFINE_PARAMETERS(
-                (ParamFloat<px4::params::MPC_THR_HOVER>) _param_mpc_thr_hover //placeholder
-        )
+	DEFINE_PARAMETERS(
+		(ParamFloat<px4::params::MPC_THR_HOVER>) _param_mpc_thr_hover //placeholder
+	)
 
 };
