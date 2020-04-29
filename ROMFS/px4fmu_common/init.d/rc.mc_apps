@@ -5,6 +5,13 @@
 # NOTE: Script variables are declared/initialized/unset in the rcS script.
 #
 
+#
+# Start RpmFilter module
+#
+# NOTE: required for both estimator and controller
+#
+rpmfiler start
+
 ###############################################################################
 #                       Begin Estimator Group Selection                       #
 ###############################################################################

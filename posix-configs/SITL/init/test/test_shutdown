@@ -23,6 +23,7 @@ sensors start
 commander start
 land_detector start vtol
 navigator start
+rpmfilter start
 ekf2 start
 vtol_att_control start
 mc_hover_thrust_estimator start

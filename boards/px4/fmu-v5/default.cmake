@@ -85,6 +85,7 @@ px4_add_board(
 		navigator
 		rc_update
 		rover_pos_control
+		rpmfilter
 		sensors
 		sih
 		temperature_compensation
