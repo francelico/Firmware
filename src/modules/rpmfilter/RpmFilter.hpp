@@ -122,6 +122,7 @@ private:
 	// cannot initialise them here as against ISO standards, need to initialise outside of function
 	// intialising the vars in cpp gives error: ‘uint8_t RpmFilter::currentMotor’ is private within this context
 	// see https://stackoverflow.com/questions/20310000/error-iso-c-forbids-in-class-initialization-of-non-const-static-member for potential solution
+	// run a test, it may be just fine and how the class works by design.
 	// var
 	uint8_t numberFilters; //total number of low pass filters for motors
 	uint8_t numberRpmNotchFilters; //counter for rpm filters

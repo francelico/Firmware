@@ -43,7 +43,7 @@
 // #include "NotchFilter.hpp" should be in hpp file?
 #include "RpmFilter.hpp"
 
-#define MOTORS_NUMBER 6 //TODO replace with esc_status.esc_count and make cleaner
+#define MOTORS_NUMBER 6 //TODO replace with esc_status.esc_count and make cleaner REPLACE by static constexpr
 #define SAMPLE_FREQ 1000 //TODO replace with pid loop rate parameter
 
 RpmFilter::RpmFilter() :
