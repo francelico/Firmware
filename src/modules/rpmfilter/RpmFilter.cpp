@@ -43,7 +43,7 @@
 // #include "NotchFilter.hpp" should be in hpp file?
 #include "RpmFilter.hpp"
 
-#define MOTORS_NUMBER 6 //TODO replace with esc_status.esc_count and make cleaner REPLACE by static constexpr
+#define MOTORS_NUMBER 6 //TODO replace with esc_status.esc_count and make cleaner REPLACE by static const uint8_t
 #define SAMPLE_FREQ 1000 //TODO replace with pid loop rate parameter
 
 RpmFilter::RpmFilter() :
@@ -178,7 +178,7 @@ void RpmFilter::rpmNotchFilterInit(rpmNotchFilter_t* filter, int harmonics, int 
 
     for (int motor = 0; motor < MOTORS_NUMBER; motor++) {
         for (int i = 0; i < harmonics; i++) {
-            filter->notch_vector3f[motor][i].setParameters(filter->sample_freq, minHz * (i + 1), filter->bandwidth);
+            filter->notch_vector3f[motor][i].setParameters(filter->sample_freq, filter->minHz * (i + 1), filter->bandwidth);
         }
     }
 }
@@ -191,7 +191,7 @@ void RpmFilter::rpmFilterInit()
     uint8_t gyro_rpm_notch_min = 20;
     uint16_t gyro_rpm_notch_bandwidth = 500;
 
-    // //parameters for dterm config
+    //TODO: those will be separate instances anyway. only have a single instance at a time.
     uint8_t dterm_rpm_notch_harmonics = 0; //number of harmonics different
     uint8_t dterm_rpm_notch_min = 100;
     uint16_t dterm_rpm_notch_bandwidth = 500;
@@ -227,4 +227,21 @@ void RpmFilter::rpmFilterInit()
     //TODO consider refining later, replace MOTORS_NUMBER by esc count, add accelerometer filters if needed.
     numberFilters = MOTORS_NUMBER * (filters[0].harmonics + filters[1].harmonics);
     filterUpdatesPerIteration = numberFilters;
+}
+
+
+//TODO this function needs a rework such that it uses the setParameters method and can be used for any
+// instance (Gyro, Dterm, Accel)
+void RpmFilter::apply(rpmNotchFilter_t* filter, matrix::Vector3f input)
+{
+    if (filter == NULL) {
+        return;
+    }
+    // recursively applies all the filtered motor frequencies and associated harmonics.
+    for (int motor = 0; motor < MOTORS_NUMBER; motor++) {
+        for (int i = 0; i < filter->harmonics; i++) {
+            matrix::Vector3f output{filter->notch_vector3f[motor][i].applyDF1(input)};
+	    output = filter->notch_vector3f[motor][i].applyDF1(input);
+        }
+    }
 }
