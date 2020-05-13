@@ -45,6 +45,7 @@
 
 
 #include <mathlib/mathlib.h> // include constrainf
+#include <matrix/matrix/math.hpp>
 //#include <mathlib/math/filter/NotchFilter.hpp>
 #include <mathlib/math/filter/NotchFilterArray.hpp>
 #include <lib/perf/perf_counter.h> //TODO check how to use
@@ -55,10 +56,6 @@
 #include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/esc_status.h>
 #include <uORB/topics/parameter_update.h> //TODO check if needed
-
-//TODO Only for testing, replace by properly defined values.
-#define MAX_SUPPORTED_MOTORS 6
-#define MAX_HARMONICS 3
 
 class RpmFilter : public ModuleBase<RpmFilter>, public ModuleParams,
 	public px4::WorkItem
@@ -83,19 +80,6 @@ public:
 	int print_status() override;
 
 	////////////TODO Decide if splitting to separate file
-
-	typedef struct rpmNotchFilter_s {
-		uint8_t harmonics;
-		float   minHz;
-		float   maxHz;
-		float   bandwidth;
-		float   sample_freq;
-
-		math::NotchFilter<matrix::Vector3f>
-		notch_vector3f[MAX_SUPPORTED_MOTORS][MAX_HARMONICS]; //TODO: replace hardcoded values by MOTOR_NUMBER, NUMBER_HARMONICS
-	} rpmNotchFilter_t;
-
-	void rpmNotchFilterInit(rpmNotchFilter_t *filter, int harmonics, int minHz, float bandwidth, float sample_freq);
 	void rpmFilterInit();
 
 private:
@@ -116,6 +100,19 @@ private:
 
 	//TODO Decide if splitting into different files
 
+	static const uint8_t _MAX_SUPPORTED_MOTORS = 12;
+	static const uint8_t _MAX_HARMONICS = 3;
+
+	typedef struct rpmNotchFilter_s {
+		uint8_t harmonics;
+		float   minHz;
+		float   maxHz;
+		float   bandwidth;
+		float   sample_freq;
+
+		math::NotchFilter<matrix::Vector3f>
+		notch_vector3f[_MAX_SUPPORTED_MOTORS][_MAX_HARMONICS]; //TODO: replace hardcoded values by MOTOR_NUMBER, NUMBER_HARMONICS
+	} rpmNotchFilter_t;
 
 	//TODO: Only compiles by removing the static and constexpr terms, this is because those values need to be initalised outside of the function!!
 	// Look into this further as it will modify how the code behaves, as those values are both used in init and update functions
@@ -128,11 +125,12 @@ private:
 	uint8_t numberRpmNotchFilters; //counter for rpm filters
 	uint8_t filterUpdatesPerIteration; // ceil(filtersPerLoopIteration)
 	esc_status_s esc_status; //structure where the esc telemetry data is stored.
-	static float   filteredMotorRpm[MAX_SUPPORTED_MOTORS]; //stores filtered Erpm value for each motor
+	static float   filteredMotorRpm[_MAX_SUPPORTED_MOTORS]; //stores filtered Erpm value for each motor
 
 	//structures
 	rpmNotchFilter_t filters[2]; // structure size.
-	rpmNotchFilter_t *gyroFilter; //filter instance for gyro filtering
+	rpmNotchFilter_t
+	*gyroFilter; //filter instance for gyro filtering !don't create instances, instead one instance that works for everything.
 	rpmNotchFilter_t *dtermFilter; //filter instance for dterm filtering
 
 	// iterators
@@ -140,5 +138,10 @@ private:
 	uint8_t currentHarmonic; //iterates through harmonics
 	uint8_t currentFilterNumber; //iterates through filter index
 	rpmNotchFilter_t *currentFilter = &filters[0]; //iterates through filters
+
+	//? Make sure OK to have as private.
+	void rpmNotchFilterInit(rpmNotchFilter_t *filter, int harmonics, int minHz, float bandwidth, float sample_freq);
+	//! This is not OK to have as private. needs a rework
+	void apply(rpmNotchFilter_t *filter, matrix::Vector3f input);
 
 };
